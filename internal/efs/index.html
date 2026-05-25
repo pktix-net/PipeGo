@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>PipeGo</title>
+        <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+        <script src="https://cdn.tailwindcss.com"></script>
+    </head>
+    <body class="bg-white text-gray-900 font-sans">
+        <div id="app" class="max-w-3xl mx-auto px-6 py-8">
+            <!-- header -->
+            <div class="flex items-center justify-between mb-6">
+                <h1 class="text-base font-semibold tracking-tight">PipeGo</h1>
+                <button
+                    @click="lang = lang === 'zh' ? 'en' : 'zh'"
+                    class="text-xs text-gray-400 hover:text-gray-700 border border-gray-300 px-2 py-0.5"
+                >
+                    {{ lang === 'zh' ? 'EN' : 'ZH' }}
+                </button>
+            </div>
+
+            <!-- hint -->
+            <p class="text-xs text-gray-400 mb-4">{{ t('hint') }}</p>
+
+            <!-- textarea -->
+            <textarea
+                v-model="routes"
+                :placeholder="t('placeholder')"
+                class="w-full h-64 font-mono text-sm leading-6 p-3 border border-gray-300 focus:border-gray-600 focus:outline-none resize-y bg-white"
+            ></textarea>
+
+            <!-- buttons -->
+            <div class="mt-3 flex gap-2">
+                <button
+                    @click="loadRoutes"
+                    class="px-4 py-1.5 text-xs border border-gray-300 hover:border-gray-600 transition-colors"
+                >
+                    {{ t('read') }}
+                </button>
+                <button
+                    @click="saveRoutes"
+                    :disabled="saving"
+                    class="px-4 py-1.5 text-xs border border-gray-900 bg-gray-900 text-white hover:bg-gray-700 hover:border-gray-700 transition-colors disabled:opacity-40"
+                >
+                    {{ saving ? t('saving') : t('save') }}
+                </button>
+            </div>
+
+            <!-- status -->
+            <p
+                v-if="status.msg"
+                class="mt-3 text-xs"
+                :class="status.type === 'error' ? 'text-red-600' : status.type === 'info' ? 'text-gray-500' : 'text-green-700'"
+            >
+                {{ status.msg }}
+            </p>
+        </div>
+
+        <script>
+            const { createApp, ref } = Vue;
+
+            const msg = {
+                zh: {
+                    hint: "格式：tcp 监听地址 -> 上游地址，每行一条。# 开头为注释。",
+                    placeholder:
+                        "tcp 0.0.0.0:80 -> 192.168.8.8:80\ntcp 0.0.0.0:443 -> 192.168.8.8:443",
+                    read: "读取",
+                    save: "保存并重载",
+                    saving: "保存中...",
+                    empty: "路由文件为空，请添加规则",
+                    readOk: "读取成功",
+                    saveOk: "保存成功，已热重载生效",
+                    readErr: "读取失败",
+                    saveErr: "保存失败",
+                    netErr: "网络错误",
+                },
+                en: {
+                    hint: "Format: tcp listen_addr -> upstream_addr, one per line. # starts a comment.",
+                    placeholder:
+                        "tcp 0.0.0.0:80 -> 192.168.8.8:80\ntcp 0.0.0.0:443 -> 192.168.8.8:443",
+                    read: "Read",
+                    save: "Save & Reload",
+                    saving: "Saving...",
+                    empty: "Routes file is empty",
+                    readOk: "Loaded",
+                    saveOk: "Saved and reloaded",
+                    readErr: "Read failed",
+                    saveErr: "Save failed",
+                    netErr: "Network error",
+                },
+            };
+
+            createApp({
+                setup() {
+                    const routes = ref("");
+                    const saving = ref(false);
+                    const status = ref({ type: "", msg: "" });
+                    const lang = ref("zh");
+
+                    function t(key) {
+                        return msg[lang.value][key] || key;
+                    }
+
+                    async function api(path, opts) {
+                        const resp = await fetch(path, opts);
+                        const text = await resp.text();
+                        let data;
+                        try {
+                            data = JSON.parse(text);
+                        } catch (e) {
+                            data = { error: text };
+                        }
+                        if (!resp.ok)
+                            throw new Error(data.error || resp.statusText);
+                        return data;
+                    }
+
+                    async function loadRoutes() {
+                        status.value = { type: "", msg: "" };
+                        try {
+                            const data = await api("/api/routes");
+                            if (data.content === "") {
+                                routes.value = "";
+                                status.value = {
+                                    type: "info",
+                                    msg: t("empty"),
+                                };
+                            } else {
+                                routes.value = atob(data.content);
+                                status.value = {
+                                    type: "success",
+                                    msg: t("readOk"),
+                                };
+                            }
+                        } catch (e) {
+                            status.value = {
+                                type: "error",
+                                msg: t("readErr") + ": " + e.message,
+                            };
+                        }
+                    }
+
+                    async function saveRoutes() {
+                        status.value = { type: "", msg: "" };
+                        saving.value = true;
+                        try {
+                            const encoded = btoa(
+                                unescape(encodeURIComponent(routes.value)),
+                            );
+                            const data = await api("/api/routes", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ content: encoded }),
+                            });
+                            if (data.status === "ok") {
+                                status.value = {
+                                    type: "success",
+                                    msg: t("saveOk"),
+                                };
+                            } else {
+                                status.value = {
+                                    type: "error",
+                                    msg:
+                                        t("saveErr") +
+                                        ": " +
+                                        (data.error || ""),
+                                };
+                            }
+                        } catch (e) {
+                            status.value = {
+                                type: "error",
+                                msg: t("netErr") + ": " + e.message,
+                            };
+                        } finally {
+                            saving.value = false;
+                        }
+                    }
+
+                    loadRoutes();
+
+                    return {
+                        routes,
+                        saving,
+                        status,
+                        lang,
+                        t,
+                        loadRoutes,
+                        saveRoutes,
+                    };
+                },
+            }).mount("#app");
+        </script>
+    </body>
+</html>

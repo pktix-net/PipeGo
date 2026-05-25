@@ -9,7 +9,7 @@ import (
 )
 
 func Start(r route.Route) {
-	listener, err := net.Listen(r.Protocol, r.Listen)
+	ln, err := net.Listen(r.Protocol, r.Listen)
 	if err != nil {
 		log.Printf("[ERROR] listen failed: %s (%v)", r.Listen, err)
 		return
@@ -22,13 +22,16 @@ func Start(r route.Route) {
 		r.Upstream,
 	)
 
+	Serve(ln, r.Upstream)
+}
+
+func Serve(ln net.Listener, upstream string) {
 	for {
-		conn, err := listener.Accept()
+		conn, err := ln.Accept()
 		if err != nil {
-			log.Printf("[ERROR] accept failed: %v", err)
-			continue
+			return
 		}
 
-		go proxy.TCPProxy(conn, r.Upstream)
+		go proxy.TCPProxy(conn, upstream)
 	}
 }
