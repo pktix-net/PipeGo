@@ -23,3 +23,7 @@ go build -o pipego ./cmd/pipego
 ```bash
 sudo ./pipego
 ```
+
+# UI
+
+![image](./docs/image1.png)
