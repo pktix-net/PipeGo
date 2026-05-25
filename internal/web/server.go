@@ -46,7 +46,7 @@ func (s *Server) Start() {
 	auth.GET("/api/routes", s.readRoutes)
 	auth.POST("/api/routes", s.writeRoutes)
 
-	addr := fmt.Sprintf("127.0.0.1:%d", s.port)
+	addr := fmt.Sprintf("0.0.0.0:%d", s.port)
 	log.Printf("[INFO] web management starting on %s", addr)
 	if err := r.Run(addr); err != nil {
 		log.Printf("[ERROR] web server failed: %v", err)
