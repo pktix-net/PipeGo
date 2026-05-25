@@ -15,13 +15,17 @@ tcp 0.0.0.0:443 -> 192.168.8.8:443
 # Build
 
 ```bash
-go build -o pipego ./cmd/pipego
+go build -o pipego ./
 ```
 
 # Run
 
+> **-p:** Web management port
+
+> **-a:** Web management password, default account is admin
+
 ```bash
-sudo ./pipego
+sudo ./pipego -p 12138 -a 123456
 ```
 
 # UI

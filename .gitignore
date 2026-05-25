@@ -5,6 +5,7 @@
 bin
 obj
 *.exe
+pipego
 temp/
 *.bak
 *.routes
