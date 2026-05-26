@@ -9,3 +9,4 @@ pipego
 temp/
 *.bak
 *.routes
+*.mmdb
