@@ -5,6 +5,7 @@ import (
 	"net"
 	"sync"
 
+	"pipego/internal/asn"
 	"pipego/internal/config"
 	"pipego/internal/listener"
 	"pipego/internal/route"
@@ -14,10 +15,22 @@ type Manager struct {
 	mu        sync.Mutex
 	routes    []route.Route
 	listeners []net.Listener
+	asnDB     *asn.DB
 }
 
-func New() *Manager {
-	return &Manager{}
+// New creates a Manager. If asnDBPath is non-empty, loads the ASN database.
+func New(asnDBPath string) *Manager {
+	m := &Manager{}
+	if asnDBPath != "" {
+		db, err := asn.Open(asnDBPath)
+		if err != nil {
+			log.Printf("[WARN] asn db open failed: %v, asn filtering disabled", err)
+		} else {
+			m.asnDB = db
+			log.Printf("[INFO] asn db loaded: %s", asnDBPath)
+		}
+	}
+	return m
 }
 
 func (m *Manager) Routes() []route.Route {
@@ -49,14 +62,15 @@ func (m *Manager) LoadAndStart(path string) error {
 
 		m.listeners = append(m.listeners, ln)
 
+		rt := r // capture loop variable
 		log.Printf(
 			"[INFO] listening %s %s -> %s",
-			r.Protocol,
-			r.Listen,
-			r.Upstream,
+			rt.Protocol,
+			rt.Listen,
+			rt.Upstream,
 		)
 
-		go listener.Serve(ln, r.Upstream)
+		go listener.Serve(ln, rt, m.asnDB)
 	}
 
 	m.routes = routes

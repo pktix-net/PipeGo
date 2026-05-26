@@ -11,11 +11,12 @@ import (
 func main() {
 	webPort := flag.Int("p", 12138, "Web management port")
 	webPass := flag.String("a", "123456", "Web management password")
+	asnDBPath := flag.String("asn-db", "GeoLite2-ASN.mmdb", "MaxMind GeoLite2-ASN database path (set empty to disable)")
 	flag.Parse()
 
 	log.Println("[INFO] PipeGo starting...")
 
-	mgr := manager.New()
+	mgr := manager.New(*asnDBPath)
 
 	// Try to load initial routes; warn but don't exit if file is missing (can be created via web)
 	if err := mgr.LoadAndStart("pipego.routes"); err != nil {
